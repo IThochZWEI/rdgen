@@ -156,16 +156,30 @@ jobs:
           # MACSTUFF Backup the original files
           cp ./flutter/macos/Runner/Info.plist ./flutter/macos/Runner/Info.plist.bak
           cp ./flutter/macos/Runner/Configs/AppInfo.xcconfig ./flutter/macos/Runner/Configs/AppInfo.xcconfig.bak
+          cp ./flutter/macos/Runner.xcodeproj/project.pbxproj ./flutter/macos/Runner.xcodeproj/project.pbxproj.bak
          
-          # MACSTUFF Update Info.plist
+          # Define the bundle identifier consistently
+          # Sanitize appname for bundle ID (remove spaces, special chars, convert to lowercase)
+          SANITIZED_APPNAME=$(echo "${{ inputs.appname }}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9.-]//g')
+          BUNDLE_ID="com.${SANITIZED_APPNAME}"
+          echo "Original appname: ${{ inputs.appname }}"
+          echo "Sanitized for bundle ID: ${SANITIZED_APPNAME}"
+          echo "Final bundle ID: ${BUNDLE_ID}"
+
+          # Update project.pbxproj
+          sed -i '' -e "s/PRODUCT_BUNDLE_IDENTIFIER = .*;/PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_ID;/g" ./flutter/macos/Runner.xcodeproj/project.pbxproj
+          sed -i '' -e "s/PRODUCT_BUNDLE_IDENTIFIER = \".*\";/PRODUCT_BUNDLE_IDENTIFIER = \"$BUNDLE_ID\";/g" ./flutter/macos/Runner.xcodeproj/project.pbxproj
+
+          # Update Info.plist
+          sed -i '' -e "s/\$(PRODUCT_BUNDLE_IDENTIFIER)/$BUNDLE_ID/g" ./flutter/macos/Runner/Info.plist
+          sed -i '' -e "s/com\.carriez\.rustdesk/$BUNDLE_ID/g" ./flutter/macos/Runner/Info.plist
           sed -i '' -e 's|<key>CFBundleName</key>.*<string>.*</string>|<key>CFBundleName</key>\n\t<string>${{ inputs.appname }}</string>|' ./flutter/macos/Runner/Info.plist
           sed -i '' -e 's|<key>CFBundleDisplayName</key>.*<string>.*</string>|<key>CFBundleDisplayName</key>\n\t<string>${{ inputs.appname }}</string>|' ./flutter/macos/Runner/Info.plist
-          sed -i '' -e 's|<key>CFBundleIdentifier</key>.*<string>.*</string>|<key>CFBundleIdentifier</key>\n\t<string>com.${{ inputs.appname }}.app</string>|' ./flutter/macos/Runner/Info.plist
-          # sed -i '' '/<key>NSHumanReadableCopyright<\/key>/{n;s/<string>.*<\/string>/<string>Copyright 2025 ${{ inputs.appname }}. All rights reserved.<\/string>/;}' ./flutter/macos/Runner/Info.plist
+          sed -i '' -e "s|<key>CFBundleIdentifier</key>.*<string>.*</string>|<key>CFBundleIdentifier</key>\n\t<string>$BUNDLE_ID</string>|" ./flutter/macos/Runner/Info.plist
           
-          # MACSTUFF Update AppInfo.xcconfig
+          # Update AppInfo.xcconfig
           sed -i '' -e 's|PRODUCT_NAME = .*|PRODUCT_NAME = ${{ inputs.appname }}|' ./flutter/macos/Runner/Configs/AppInfo.xcconfig
-          sed -i '' -e 's|PRODUCT_BUNDLE_IDENTIFIER = .*|PRODUCT_BUNDLE_IDENTIFIER = com.${{ inputs.appname }}.app|' ./flutter/macos/Runner/Configs/AppInfo.xcconfig
+          sed -i '' -e "s|PRODUCT_BUNDLE_IDENTIFIER = .*|PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_ID|" ./flutter/macos/Runner/Configs/AppInfo.xcconfig
           sed -i '' -e 's|Purslane Ltd.|${{ inputs.appname }}|' ./flutter/macos/Runner/Configs/AppInfo.xcconfig
           # Keep DEVELOPMENT_TEAM if it exists, don't blank it out
 
@@ -174,8 +188,12 @@ jobs:
           
           # Update Xcode project settings
           sed -i '' -e 's/PRODUCT_NAME = "RustDesk"/PRODUCT_NAME = "${{ inputs.appname }}"/' ./flutter/macos/Runner.xcodeproj/project.pbxproj
-          sed -i '' -e 's/PRODUCT_BUNDLE_IDENTIFIER = ".*"/PRODUCT_BUNDLE_IDENTIFIER = "com.${{ inputs.appname }}.app"/' ./flutter/macos/Runner.xcodeproj/project.pbxproj
-          # Don't modify DEVELOPMENT_TEAM in project.pbxproj
+          
+          # Verify the changes
+          echo "Checking bundle identifier in Info.plist:"
+          grep -A 1 "CFBundleIdentifier" ./flutter/macos/Runner/Info.plist || true
+          echo "Checking bundle identifier in AppInfo.xcconfig:"
+          grep "PRODUCT_BUNDLE_IDENTIFIER" ./flutter/macos/Runner/Configs/AppInfo.xcconfig || true
 
           # Update CMake settings
           if [ -f "./flutter/macos/CMakeLists.txt" ]; then
@@ -225,6 +243,10 @@ jobs:
           sed -i '' -e 's|rs-ny.rustdesk.com|${{ inputs.server }}|' ./libs/hbb_common/src/config.rs
           sed -i '' -e 's|OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=|${{ inputs.key }}|' ./libs/hbb_common/src/config.rs
           sed -i '' -e 's|https://admin.rustdesk.com|${{ inputs.apiServer }}|' ./src/common.rs
+          
+          # Remove signature verification to allow custom clients to connect
+          sed -i '' -e '/const KEY:/,/};/d' ./src/common.rs
+          sed -i '' -e '/let Ok(data) = sign::verify(&data, &pk)/,/};/d' ./src/common.rs
           
           wget https://raw.githubusercontent.com/bryangerlach/rdgen/refs/heads/master/.github/patches/allowCustom.diff
           git apply allowCustom.diff
