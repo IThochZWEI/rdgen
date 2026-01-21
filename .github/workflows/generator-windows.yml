@@ -1,59 +1,58 @@
 name: Custom Windows Client Generator
 run-name: Custom Windows Client Generator
-on: 
+on:
   workflow_dispatch:
     inputs:
       server:
-        description: 'Rendezvous Server'
+        description: "Rendezvous Server"
         required: true
-        default: ''
+        default: ""
         type: string
       key:
-        description: 'Public Key'
+        description: "Public Key"
         required: true
-        default: ''
+        default: ""
         type: string
       apiServer:
-        description: 'API Server'
+        description: "API Server"
         required: true
-        default: ''
+        default: ""
         type: string
       custom:
         description: "Custom JSON"
         required: true
-        default: ''
+        default: ""
         type: string
       uuid:
         description: "uuid of request"
         required: true
-        default: ''
+        default: ""
         type: string
       iconlink:
         description: "icon link"
         required: false
-        default: 'false'
+        default: "false"
         type: string
       logolink:
         description: "logo link"
         required: false
-        default: 'false'
+        default: "false"
         type: string
       appname:
         description: "app name"
         required: true
-        default: 'rustdesk'
+        default: "rustdesk"
         type: string
       filename:
         description: "Filename"
         required: true
-        default: 'rustdesk'
+        default: "rustdesk"
         type: string
       extras:
         description: "extra inputs in json"
         required: true
-        default: '{}'
+        default: "{}"
         type: string
-
 
 env:
   SCITER_RUST_VERSION: "1.75" # https://github.com/rustdesk/rustdesk/discussions/7503, also 1.78 has ABI change which causes our sciter version not working, https://blog.rust-lang.org/2024/03/30/i128-layout-update.html
@@ -63,7 +62,7 @@ env:
   SCITER_NASM_DEBVERSION: "2.15.05-1"
   LLVM_VERSION: "15.0.6"
   FLUTTER_VERSION: "3.24.5"
-  ANDROID_FLUTTER_VERSION: "3.24.5" 
+  ANDROID_FLUTTER_VERSION: "3.24.5"
   # for arm64 linux because official Dart SDK does not work
   FLUTTER_ELINUX_VERSION: "3.16.9"
   TAG_NAME: "${{ inputs.upload-tag }}"
@@ -76,10 +75,9 @@ env:
   #signing keys env variable checks
   ANDROID_SIGNING_KEY: "${{ secrets.ANDROID_SIGNING_KEY }}"
   MACOS_P12_BASE64: "${{ secrets.MACOS_P12_BASE64 }}"
-  UPLOAD_ARTIFACT: 'true'
+  UPLOAD_ARTIFACT: "true"
   SIGN_BASE_URL: "${{ secrets.SIGN_BASE_URL }}"
   STATUS_URL: "${{ secrets.GENURL }}/updategh"
-
 
 jobs:
   generate-bridge:
@@ -122,7 +120,7 @@ jobs:
           script: |
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
-      
+
       - name: Set rdgen value
         if: ${{ fromJson(inputs.extras).rdgen == 'true' }}
         run: |
@@ -138,7 +136,7 @@ jobs:
         continue-on-error: true
         with:
           url: ${{ env.STATUS_URL }}
-          method: 'POST'
+          method: "POST"
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "5% complete"}'
 
@@ -173,7 +171,7 @@ jobs:
         run: |
           sed -i -e 's|2ded7f146437a761ffe6981e2f742038f85ca68d|08a471bb8ceccdd50483c81cdfa8b81b07b14b87|' ./flutter/pubspec.lock
           sed -i -e 's|2ded7f146437a761ffe6981e2f742038f85ca68d|08a471bb8ceccdd50483c81cdfa8b81b07b14b87|' ./flutter/pubspec.yaml
-      
+
       - name: change appname to custom
         if: inputs.appname != 'rustdesk'
         continue-on-error: true
@@ -216,7 +214,7 @@ jobs:
           sed -i -e 's|{subkey}|\\\"{subkey}\\\"|' ./src/platform/windows.rs
           sed -i -e 's|reg delete HKEY_CLASSES_ROOT\\\\.{ext} /f|reg delete \\\"HKEY_CLASSES_ROOT\\\\.{ext}\\\" /f|' ./src/platform/windows.rs
           sed -i -e 's|reg delete HKEY_CLASSES_ROOT\\\\{ext} /f|reg delete \\\"HKEY_CLASSES_ROOT\\\\{ext}\\\" /f|' ./src/platform/windows.rs
-          
+
       - name: change company name
         if: fromJson(inputs.extras).compname != 'Purslane Ltd'
         continue-on-error: true
@@ -229,7 +227,7 @@ jobs:
           sed -i -e 's|Purslane Ltd|${{ fromJson(inputs.extras).compname }}|' ./flutter/windows/runner/Runner.rc
           sed -i -e 's|Purslane Ltd|${{ fromJson(inputs.extras).compname }}|' ./Cargo.toml
           sed -i -e 's|Purslane Ltd|${{ fromJson(inputs.extras).compname }}|' ./libs/portable/Cargo.toml
-             
+
       - name: change url to custom
         if: fromJson(inputs.extras).urlLink != 'https://rustdesk.com'
         continue-on-error: true
@@ -281,7 +279,7 @@ jobs:
         continue-on-error: true
         with:
           url: ${{ env.STATUS_URL }}
-          method: 'POST'
+          method: "POST"
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "10% complete"}'
 
@@ -319,20 +317,20 @@ jobs:
         continue-on-error: true
         with:
           url: ${{ env.STATUS_URL }}
-          method: 'POST'
+          method: "POST"
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "15% complete"}'
 
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: ${{ matrix.job.os }}
-        
+
       - name: Report Status
         uses: fjogeleit/http-request-action@v1
         continue-on-error: true
         with:
           url: ${{ env.STATUS_URL }}
-          method: 'POST'
+          method: "POST"
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "20% complete"}'
 
@@ -388,7 +386,6 @@ jobs:
           magick ./res/icon.png -resize 128x128 ./res/128x128.png
           magick ./res/128x128.png -resize 200% ./res/128x128@2x.png
 
-
       - name: ui.rs icon
         if: ${{ inputs.iconlink != 'false' }}
         continue-on-error: true
@@ -430,7 +427,7 @@ jobs:
         continue-on-error: true
         if: fromJson(inputs.extras).removeNewVersionNotif == 'true'
         shell: bash
-        run: | 
+        run: |
           sed -i -e 's|updateUrl.isNotEmpty|false|' ./flutter/lib/desktop/pages/desktop_home_page.dart
           sed -i '/let (request, url) =/,/Ok(())/{/Ok(())/!d}' ./src/common.rs
 
@@ -449,7 +446,7 @@ jobs:
         continue-on-error: true
         with:
           url: ${{ env.STATUS_URL }}
-          method: 'POST'
+          method: "POST"
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "25% complete"}'
 
@@ -468,7 +465,7 @@ jobs:
         continue-on-error: true
         with:
           url: ${{ env.STATUS_URL }}
-          method: 'POST'
+          method: "POST"
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "50% complete, this step takes about 5 minutes, be patient."}'
 
@@ -477,7 +474,7 @@ jobs:
           # Windows: build RustDesk
           python3 .\build.py --portable --hwcodec --flutter --vram --skip-portable-pack
           mv ./flutter/build/windows/x64/runner/Release ./rustdesk
- 
+
           # Download usbmmidd_v2.zip and extract it to ./rustdesk
           Invoke-WebRequest -Uri https://github.com/rustdesk-org/rdev/releases/download/usbmmidd_v2/usbmmidd_v2.zip -OutFile usbmmidd_v2.zip
           Expand-Archive usbmmidd_v2.zip -DestinationPath . -Force
@@ -553,10 +550,10 @@ jobs:
         continue-on-error: true
         with:
           url: ${{ env.STATUS_URL }}
-          method: 'POST'
+          method: "POST"
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "70% complete, this step takes about 5 minutes, be patient."}'
-      
+
       - name: zip dlls
         continue-on-error: true
         shell: pwsh
@@ -610,7 +607,7 @@ jobs:
         continue-on-error: true
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
-          $myappname = "${{ inputs.appname }}" -replace '\s','_'
+          $myappname = "${{ inputs.appname }}" -replace '\s','-'
           cp "rustdesk/${{ inputs.appname }}.exe" "rustdesk/${myappname}.exe" -ErrorAction SilentlyContinue
           pushd ./res/msi
           python preprocess.py --app-name "$myappname" --arp -d ../../rustdesk
@@ -625,7 +622,7 @@ jobs:
         continue-on-error: true
         with:
           url: ${{ env.STATUS_URL }}
-          method: 'POST'
+          method: "POST"
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "85% complete"}'
 
@@ -684,7 +681,7 @@ jobs:
         uses: fjogeleit/http-request-action@v1
         with:
           url: ${{ env.STATUS_URL }}
-          method: 'POST'
+          method: "POST"
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "Success"}'
 
@@ -693,7 +690,7 @@ jobs:
         uses: fjogeleit/http-request-action@v1
         with:
           url: ${{ env.STATUS_URL }}
-          method: 'POST'
+          method: "POST"
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "Generation failed, try again"}'
 
@@ -702,6 +699,6 @@ jobs:
         uses: fjogeleit/http-request-action@v1
         with:
           url: ${{ env.STATUS_URL }}
-          method: 'POST'
+          method: "POST"
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "Generation cancelled, try again"}'
