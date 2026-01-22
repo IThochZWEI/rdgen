@@ -80,7 +80,7 @@ def generator_view(request):
 
             if all(char.isascii() for char in filename):
                 filename = re.sub(r'[^\w\s-]', '_', filename).strip()
-                filename = filename.replace(" ","-")
+
             else:
                 filename = "rustdesk"
             if not all(char.isascii() for char in appname):
