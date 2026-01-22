@@ -172,6 +172,12 @@ jobs:
           sed -i -e 's|2ded7f146437a761ffe6981e2f742038f85ca68d|08a471bb8ceccdd50483c81cdfa8b81b07b14b87|' ./flutter/pubspec.lock
           sed -i -e 's|2ded7f146437a761ffe6981e2f742038f85ca68d|08a471bb8ceccdd50483c81cdfa8b81b07b14b87|' ./flutter/pubspec.yaml
 
+      - name: fix Runner.rc RemoteSupport macro
+        shell: bash
+        run: |
+          # Replace undefined RemoteSupport macro with the configured app name
+          sed -i 's/RemoteSupport/"${{ inputs.appname }}"/g' ./flutter/windows/runner/Runner.rc
+
       - name: change appname to custom
         if: inputs.appname != 'rustdesk'
         continue-on-error: true
