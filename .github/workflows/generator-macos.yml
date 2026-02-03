@@ -775,73 +775,41 @@ jobs:
           ls -la "${{ inputs.appname }}.app" || echo "App not found"
           ls -la "${{ inputs.appname }}.app/Contents" || echo "Contents not found"
 
-          # FORCE CONSISTENCY: Rename executable and update Info.plist
-          # 1. Find the current executable name from Info.plist source of truth
-          EXISTING_EXEC=$(plutil -extract CFBundleExecutable raw "${{ inputs.appname }}.app/Contents/Info.plist")
-          NEW_EXEC="${{ inputs.appname }}"
-
-          echo "Found existing executable from Info.plist: $EXISTING_EXEC"
-          echo "Target executable name: $NEW_EXEC"
-
-          FULL_EXISTING_PATH="${{ inputs.appname }}.app/Contents/MacOS/$EXISTING_EXEC"
-
-          # 2. Extract entitlements from the original binary (before rename)
-          # We need to preserve entitlements (like JIT, Network, etc) for Hardened Runtime
-          echo "Extracting entitlements..."
-          codesign -d --entitlements :entitlements.plist "$FULL_EXISTING_PATH" || echo "No entitlements found or extraction failed"
-
-          if [ -s entitlements.plist ]; then
-              echo "✅ Entitlements extracted:"
-              # Ensure it is valid XML for rcodesign
-              plutil -convert xml1 entitlements.plist
-              cat entitlements.plist
-          else
-              echo "⚠️ No entitlements extracted"
-          fi
-
-          if [ "$EXISTING_EXEC" != "$NEW_EXEC" ]; then
-              echo "Renaming executable from $EXISTING_EXEC to $NEW_EXEC"
-              mv "$FULL_EXISTING_PATH" "${{ inputs.appname }}.app/Contents/MacOS/$NEW_EXEC"
-              
-              # Update Info.plist to point to the new executable name
-              echo "Updating Info.plist CFBundleExecutable to $NEW_EXEC"
-              plutil -replace CFBundleExecutable -string "$NEW_EXEC" "${{ inputs.appname }}.app/Contents/Info.plist"
-          fi
-
-          # 3. Verify Info.plist
-          echo "Verifying Info.plist CFBundleExecutable:"
-          plutil -p "${{ inputs.appname }}.app/Contents/Info.plist" | grep CFBundleExecutable
-
           # Decode the certificate
           echo "${{ secrets.MACOS_P12_BASE64 }}" | base64 --decode > certificate.p12
 
           # Sign the app bundle and its contents
           if [ -d "${{ inputs.appname }}.app/Contents/MacOS" ]; then
             echo "Signing main executable..."
-            MAIN_EXECUTABLE="${{ inputs.appname }}.app/Contents/MacOS/$NEW_EXEC"
             
+            # Try to find the executable. It should be named ${{ inputs.appname }} but let's be robust
+            MAIN_EXECUTABLE="${{ inputs.appname }}.app/Contents/MacOS/${{ inputs.appname }}"
+            
+            if [ ! -f "$MAIN_EXECUTABLE" ]; then
+               echo "Main executable not found at expected path: $MAIN_EXECUTABLE"
+               # Try to find the actual executable
+               echo "Available executables in MacOS directory:"
+               ls -la "${{ inputs.appname }}.app/Contents/MacOS/"
+               ACTUAL_EXECUTABLE=$(ls "${{ inputs.appname }}.app/Contents/MacOS/" | head -n 1)
+               if [ -n "$ACTUAL_EXECUTABLE" ]; then
+                 echo "Found executable: $ACTUAL_EXECUTABLE"
+                 MAIN_EXECUTABLE="${{ inputs.appname }}.app/Contents/MacOS/$ACTUAL_EXECUTABLE"
+               fi
+            fi
+
             if [ -f "$MAIN_EXECUTABLE" ]; then
-              if [ -s entitlements.plist ]; then
-                echo "Signing with entitlements..."
-                rcodesign sign --p12-file certificate.p12 --p12-password "${{ secrets.MACOS_P12_PASSWORD }}" \
-                  --code-signature-flags runtime \
-                  --entitlements-xml-path entitlements.plist \
-                  "$MAIN_EXECUTABLE"
-              else
-                echo "Signing without specific entitlements..."
-                rcodesign sign --p12-file certificate.p12 --p12-password "${{ secrets.MACOS_P12_PASSWORD }}" \
-                  --code-signature-flags runtime "$MAIN_EXECUTABLE"
-              fi
+              rcodesign sign --p12-file certificate.p12 --p12-password "${{ secrets.MACOS_P12_PASSWORD }}" \
+                --code-signature-flags runtime "$MAIN_EXECUTABLE"
             else
-              echo "CRITICAL ERROR: Main executable not found at: $MAIN_EXECUTABLE"
+              echo "CRITICAL ERROR: Main executable not found!"
               exit 1
             fi
-            
+
             echo "Signing frameworks..."
             find "${{ inputs.appname }}.app/Contents/Frameworks" -type f -not -name ".*" -exec \
               rcodesign sign --p12-file certificate.p12 --p12-password "${{ secrets.MACOS_P12_PASSWORD }}" \
               --code-signature-flags runtime {} \;
-            
+
             echo "Signing main bundle..."
             rcodesign sign --p12-file certificate.p12 --p12-password "${{ secrets.MACOS_P12_PASSWORD }}" \
               --code-signature-flags runtime "${{ inputs.appname }}.app"
