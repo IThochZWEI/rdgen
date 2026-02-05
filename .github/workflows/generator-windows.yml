@@ -430,7 +430,7 @@ jobs:
           git apply xoffline.diff
 
       - name: Add tenant id support
-        continue-on-error: true
+        continue-on-error: false
         run: |
           Invoke-WebRequest -Uri "https://raw.githubusercontent.com/${{ github.repository }}/master/.github/patches/tenant_id.diff" -OutFile tenant_id.diff
           git apply tenant_id.diff

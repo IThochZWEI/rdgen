@@ -22,12 +22,23 @@ index 456789a..abcdefg 100644
 +       use winreg::RegKey;
 +       
 +       // Check for Azure AD / Intune Tenant ID
-+       // Location: HKLM\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\TenantInfo\{TenantID}
-+       // The subkey name itself is the Tenant ID (GUID)
++       // Location 1: HKLM\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\TenantInfo\{TenantID}
 +       if let Ok(hk) = RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey("SYSTEM\\CurrentControlSet\\Control\\CloudDomainJoin\\TenantInfo") {
 +           for name in hk.enum_keys().filter_map(|r| r.ok()) {
 +               let t = name.trim().to_string();
 +               if !t.is_empty() { return Some(t); }
++           }
++       }
++
++       // Location 2: HKLM\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo\{GUID}\TenantId
++       if let Ok(hk) = RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey("SYSTEM\\CurrentControlSet\\Control\\CloudDomainJoin\\JoinInfo") {
++           for name in hk.enum_keys().filter_map(|r| r.ok()) {
++               if let Ok(sub) = hk.open_subkey(&name) {
++                   if let Ok(tid) = sub.get_value::<String, _>("TenantId") {
++                       let t = tid.trim().to_string();
++                       if !t.is_empty() { return Some(t); }
++                   }
++               }
 +           }
 +       }
 +   }
