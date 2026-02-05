@@ -2,16 +2,16 @@ diff --git a/src/hbbs_http/sync.rs b/src/hbbs_http/sync.rs
 index 456789a..abcdefg 100644
 --- a/src/hbbs_http/sync.rs
 +++ b/src/hbbs_http/sync.rs
-@@ -79,6 +79,9 @@ async fn start_hbbs_sync_async() {
-                 if !info_uploaded.0 && info_uploaded.2.map(|x| x.elapsed() >= UPLOAD_SYSINFO_TIMEOUT).unwrap_or(true) {
-                     let mut v = crate::get_sysinfo();
-+                    if let Some(tid) = get_tenant_id() {
-+                        v["tenant_id"] = json!(tid);
-+                    }
-                     // username is empty in login screen of windows, but here we only upload sysinfo once, causing
-                     // real user name not uploaded after login screen. https://github.com/rustdesk/rustdesk/discussions/8031
-                     if !cfg!(windows) || !v["username"].as_str().unwrap_or_default().is_empty() {
-@@ -187,3 +190,35 @@ pub fn is_pro() -> bool {
+@@ -125,6 +125,9 @@ async fn start_hbbs_sync_async() {
+                 // we may not be able to get the username before login after the next restart.
+                 let mut v = crate::get_sysinfo();
++                if let Some(tid) = get_tenant_id() {
++                    v["tenant_id"] = json!(tid);
++                }
+                 let sys_username = v["username"].as_str().unwrap_or_default().to_string();
+                 // Though the username comparison is only necessary on Windows,
+                 // we still keep the comparison on other platforms for consistency.
+@@ -304,3 +307,35 @@ pub fn is_pro() -> bool {
  pub fn is_pro() -> bool {
      PRO.lock().unwrap().clone()
  }
